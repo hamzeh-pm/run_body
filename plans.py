@@ -19,6 +19,7 @@ class Plan:
     ):
         self.name = name
         self.runs = runs
+        self.this_run = None
         self.warmup_time = warmup_time
         self.cool_down_time = cool_down_time
         self.state = self.State.STARTING
@@ -53,8 +54,8 @@ class Plan:
     @property
     def get_total_time(self):
         return (
-            self.total_duration
-            + self.total_rest_duration
+            self.get_duration
+            + self.get_rest_duration
             + self.warmup_time
             + self.cool_down_time
         )
@@ -116,13 +117,14 @@ class Plan:
             elif self.state == self.State.COOL_DOWN:
                 self.finish_workout()
 
-            if self.state_change_callback:
-                self.state_change_callback(self.state, self.state_time)
+        if self.state_change_callback:
+            self.state_change_callback(self.state, self.state_time)
 
         # get current location
         self.get_current_location()
 
-    def play_sound(self, file_location):
+    @staticmethod
+    def play_sound( file_location):
         mixer.init()
         mixer.music.load(file_location)
         mixer.music.play()
@@ -130,8 +132,11 @@ class Plan:
             time.sleep(1)
 
     def get_current_location(self):
-        gps.configure(on_location=self.on_location)
-        gps.start(minTime=1000, minDistance=0)
+        try:
+            gps.configure(on_location=self.on_location)
+            gps.start(minTime=1000, minDistance=0)
+        except NotImplementedError:
+            pass
 
     def on_location(self, **kwargs):
         lat = kwargs.get("lat")

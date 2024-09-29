@@ -1,9 +1,11 @@
+from tokenize import group
+
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
-
+from kivy.graphics import Color, Line
 from plans import Plan, Run
 
 
@@ -19,7 +21,7 @@ class RunBodyLayout(BoxLayout):
     plan: Plan = None
 
     def action_start(self):
-        self.plan.start_workout()
+        self.plan.begin_workout()
         self.plan.state_change_callback = self.update_state_label
         self.plan.clock_event = Clock.schedule_interval(self.plan.update_state, 1)
 
@@ -77,9 +79,22 @@ class RunBodyApp(App):
         return run_body
 
     @staticmethod
-    def assign_plan(run_body, plan):
+    def assign_plan(instance, run_body, plan):
         run_body.plan = plan
         run_body.update_state_label(plan.state, plan.state_time)
+
+        # Reset all buttons' borders to white
+        for button in run_body.run_lst.children:
+            button.canvas.before.remove_group('border')
+            with button.canvas.before:
+                Color(1, 1, 1, 1, group='border')  # White color for the border
+                Line(width=2, rectangle=(button.x, button.y, button.width, button.height), group='border')
+
+        # change border of instance to red
+        button.canvas.before.remove_group('border')
+        with instance.canvas.before:
+            Color(1, 0, 0, 1, group='border')  # Red color for the border
+            Line(width=2, rectangle=(instance.x, instance.y, instance.width, instance.height), group='border')
 
     def create_plan(self, name, runs, run_body):
         # populate plans
@@ -91,7 +106,7 @@ class RunBodyApp(App):
             text_size=(None, None),
             size_hint_x=None,
         )
-        run_plan.bind(on_press=lambda x: self.assign_plan(run_body, week_plan))
+        run_plan.bind(on_press=lambda x: self.assign_plan(x, run_body, week_plan))
         run_plan.bind(size=self.update_text_size)
         run_body.run_lst.add_widget(run_plan)
 
