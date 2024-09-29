@@ -1,97 +1,160 @@
 import time
+from datetime import datetime
 from enum import Enum
 
+from plyer import gps
 from pygame import mixer
 
 
+class Run:
+    def __init__(self, duration: int, rest_duration: int, distance: int = None):
+        self.duration = duration
+        self.rest_duration = rest_duration
+        self.distance = distance
+
+
 class Plan:
-    def __init__(self, name, runs, run_time, rest_time):
+    def __init__(
+        self, name, runs: list[Run], warmup_time: int = 300, cool_down_time: int = 300
+    ):
         self.name = name
         self.runs = runs
-        self.run_time = run_time
-        self.rest_time = rest_time
-        self.warmup_time = 20
-        self.cooldown_time = 20
-        self.prev_state = None
-        self.state = self.State.WARMUP
+        self.warmup_time = warmup_time
+        self.cool_down_time = cool_down_time
+        self.state = self.State.STARTING
         self.state_time = 0
+
+        # for cleanup purposes
         self.clock_event = None
         self.state_change_callback = None
 
-    class State(Enum):
-        WARMUP = 0
-        RUNNING = 1
-        RESTING = 2
-        COOLDOWN = 3
-        FINISHED = 4
+        # history
+        self.is_finished = False
+        self.start_time = None
+        self.end_time = None
+        self.running_path = []
 
+    class State(Enum):
+        STARTING = 0
+        WARMUP = 1
+        RUNNING = 2
+        RESTING = 3
+        COOL_DOWN = 4
+        FINISHED = 5
+
+    @property
+    def get_duration(self):
+        return sum(run.duration for run in self.runs)
+
+    @property
+    def get_rest_duration(self):
+        return sum(run.rest_duration for run in self.runs)
+
+    @property
     def get_total_time(self):
         return (
-            self.runs * (self.run_time + self.rest_time)
+            self.total_duration
+            + self.total_rest_duration
             + self.warmup_time
-            + self.cooldown_time
+            + self.cool_down_time
         )
 
-    def start_workout(self):
-        self.play_mixer("sounds/start.mp3")
-        self.play_mixer("sounds/start_warmup.mp3")
+    def begin_workout(self):
+        self.state = self.State.STARTING
+        self.play_sound("sounds/begin.mp3")
+        self.state_time = 10
+        self.start_time = datetime.now()
+
+    def start_warmup(self):
         self.state = self.State.WARMUP
+        self.play_sound("sounds/warmup.mp3")
         self.state_time = self.warmup_time
 
+    def start_running(self):
+        self.this_run = self.runs.pop(0)
+        self.state = self.State.RUNNING
+        self.play_sound("sounds/running.mp3")
+        self.state_time = self.this_run.duration
+
+    def start_resting(self):
+        self.state = self.State.RESTING
+        self.play_sound("sounds/walking.mp3")
+        self.state_time = self.this_run.rest_duration
+
+    def start_cool_down(self):
+        self.state = self.State.COOL_DOWN
+        self.play_sound("sounds/cool_down.mp3")
+        self.state_time = self.cool_down_time
+
+    def finish_workout(self):
+        self.state = self.State.FINISHED
+        self.play_sound("sounds/finish.mp3")
+        self.state_time = 0
+        self.runs = []
+        self.this_run = None
+        self.is_finished = True
+        self.end_time = datetime.now()
+        self.save_workout()
+
+    def save_workout(self):
+        pass
+
     def update_state(self, dt):
-        self.prev_state = self.state
-        dt = 1
-        self.state_time -= dt
-        if self.state == self.State.WARMUP and self.state_time <= 0:
-            self.state = self.State.RUNNING
-            self.state_time = self.run_time
-
-        elif self.state == self.State.RUNNING and self.state_time <= 0:
-            self.state = self.State.RESTING
-            self.state_time = self.rest_time
-            self.runs -= 1
-
-        elif self.state == self.State.RESTING and self.state_time <= 0:
-            if self.runs > 0:
-                self.state = self.State.RUNNING
-                self.state_time = self.run_time
-            else:
-                self.state = self.State.COOLDOWN
-                self.state_time = self.cooldown_time
-
-        elif self.state == self.state.COOLDOWN and self.state_time <= 0:
-            self.state = self.State.FINISHED
-            self.state_time = 0
-            self.stop_workout()
-
-            # clear the side effect of the last run
-            # save the result
-        if self.state_change_callback:
-            self.state_change_callback(self.state, self.state_time)
-
-        self.play_sound()
-
-    def stop_workout(self):
-        if self.clock_event:
-            self.clock_event.cancel()
-            self.clock_event = None
-            self.state = self.State.WARMUP
-            self.state_time = 0
-
-    def play_sound(self):
-        if self.state != self.prev_state:
-            if self.state == self.State.WARMUP:
-                self.play_mixer("sounds/start_warmup.mp3")
+        self.state_time -= 1
+        if self.state_time <= 0:
+            if self.state == self.State.STARTING:
+                self.start_warmup()
+            elif self.state == self.State.WARMUP:
+                self.start_running()
             elif self.state == self.State.RUNNING:
-                self.play_mixer("sounds/begin_running.mp3")
+                if self.runs:
+                    self.start_resting()
+                else:
+                    self.start_cool_down()
             elif self.state == self.State.RESTING:
-                self.play_mixer("sounds/start_walking.mp3")
-            elif self.state == self.State.COOLDOWN:
-                self.play_mixer("sounds/start_cooldown.mp3")
+                self.start_running()
+            elif self.state == self.State.COOL_DOWN:
+                self.finish_workout()
 
-    def play_mixer(self, file_location):
+            if self.state_change_callback:
+                self.state_change_callback(self.state, self.state_time)
+
+        # get current location
+        self.get_current_location()
+
+    def play_sound(self, file_location):
         mixer.init()
         mixer.music.load(file_location)
         mixer.music.play()
         while mixer.music.get_busy():  # wait for music to finish playing
             time.sleep(1)
+
+    def get_current_location(self):
+        gps.configure(on_location=self.on_location)
+        gps.start(minTime=1000, minDistance=0)
+
+    def on_location(self, **kwargs):
+        lat = kwargs.get("lat")
+        lon = kwargs.get("lon")
+        if lat is not None and lon is not None:
+            self.running_path.append((lat, lon))
+
+    def __str__(self):
+        name = ""
+        run_name = f"{self.runs[0].duration / 60:.1f}"
+        run_time = 1
+
+        for run in self.runs[1:]:
+            if f"{run.duration / 60:.1f}" == run_name:
+                run_time += 1
+                continue
+
+            name = name + f"{run_time}x{run_name} min \n"
+            run_name = f"{run.duration / 60:.1f}"
+            run_time = 1
+
+        name = name + f"{run_time}x{run_name} min \n"
+        return name
+
+    def __len__(self):
+        return len(self.runs)

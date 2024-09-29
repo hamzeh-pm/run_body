@@ -4,7 +4,7 @@ from kivy.properties import ObjectProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 
-from plans import Plan
+from plans import Plan, Run
 
 
 class RunPlanButton(Button):
@@ -26,7 +26,7 @@ class RunBodyLayout(BoxLayout):
     def update_state_label(self, state, state_time):
         minutes, seconds = divmod(int(state_time), 60)
         self.state_lbl.text = f"{self.plan.name} {state.name}"
-        self.run_lbl.text = f"{self.plan.runs} runs left"
+        self.run_lbl.text = f"{len(self.plan)} runs left"
         self.timer_lbl.text = f"{minutes:02}:{seconds:02}"
 
 
@@ -34,44 +34,46 @@ class RunBodyApp(App):
     def build(self):
         run_body = RunBodyLayout()
         # Week 1
-        self.create_plan("W1D1", 8, 60, 90, run_body)
-        self.create_plan("W1D2", 8, 60, 90, run_body)
-        self.create_plan("W1D2", 8, 60, 90, run_body)
+        self.create_plan("W1D1", [Run(60, 90)] * 8, run_body)
+        self.create_plan("W1D2", [Run(60, 90)] * 8, run_body)
+        self.create_plan("W1D2", [Run(60, 90)] * 8, run_body)
 
         # Week 2
-        self.create_plan("W2D1", 6, 90, 120, run_body)
-        self.create_plan("W2D2", 6, 90, 120, run_body)
-        self.create_plan("W2D3", 6, 90, 120, run_body)
+        self.create_plan("W2D1", [Run(90, 120)] * 6, run_body)
+        self.create_plan("W2D2", [Run(90, 120)] * 6, run_body)
+        self.create_plan("W2D3", [Run(90, 120)] * 6, run_body)
 
         # Week 3
-        self.create_plan("W3D1", 6, 120, 120, run_body)
-        self.create_plan("W3D2", 6, 120, 120, run_body)
-        self.create_plan("W3D3", 6, 120, 120, run_body)
+        self.create_plan("W3D1", [Run(120, 120)] * 6, run_body)
+        self.create_plan("W3D2", [Run(120, 120)] * 6, run_body)
+        self.create_plan("W3D3", [Run(120, 120)] * 6, run_body)
 
         # Week 4
-        self.create_plan("W4D1", 5, 180, 90, run_body)
-        self.create_plan("W4D2", 5, 180, 90, run_body)
-        self.create_plan("W4D3", 5, 180, 90, run_body)
+        self.create_plan("W4D1", [Run(180, 90)] * 5, run_body)
+        self.create_plan("W4D2", [Run(180, 90)] * 5, run_body)
+        self.create_plan("W4D3", [Run(180, 90)] * 5, run_body)
 
         # Week 5
-        self.create_plan("W5D1", 3, 300, 180, run_body)
-        self.create_plan("W5D2", 2, 480, 300, run_body)
-        self.create_plan("W5D3", 1, 1200, 0, run_body)
+        self.create_plan("W5D1", [Run(300, 180)] * 3, run_body)
+        self.create_plan("W5D2", [Run(480, 300)] * 2, run_body)
+        self.create_plan("W5D3", [Run(1200, 0)], run_body)
 
         # Week 6
-        self.create_plan("W6D1", 4, 300, 180, run_body)
-        self.create_plan("W6D2", 2, 600, 180, run_body)
-        self.create_plan("W6D3", 1, 1500, 0, run_body)
+        self.create_plan(
+            "W6D1", [Run(300, 180)] + [Run(480, 180)] + [Run(300, 180)], run_body
+        )
+        self.create_plan("W6D2", [Run(600, 180)] * 2, run_body)
+        self.create_plan("W6D3", [Run(1500, 0)], run_body)
 
         # Week 7
-        self.create_plan("W7D1", 1, 1500, 0, run_body)
-        self.create_plan("W7D2", 1, 1500, 0, run_body)
-        self.create_plan("W7D3", 1, 1500, 0, run_body)
+        self.create_plan("W7D1", [Run(1500, 0)], run_body)
+        self.create_plan("W7D2", [Run(1500, 0)], run_body)
+        self.create_plan("W7D3", [Run(1500, 0)], run_body)
 
         # Week 8
-        self.create_plan("W8D1", 1, 1680, 0, run_body)
-        self.create_plan("W8D2", 1, 1800, 0, run_body)
-        self.create_plan("W8D3", 1, 2000, 0, run_body)
+        self.create_plan("W8D1", [Run(1680, 0)], run_body)
+        self.create_plan("W8D2", [Run(1800, 0)], run_body)
+        self.create_plan("W8D3", [Run(2000, 0)], run_body)
         return run_body
 
     @staticmethod
@@ -79,16 +81,22 @@ class RunBodyApp(App):
         run_body.plan = plan
         run_body.update_state_label(plan.state, plan.state_time)
 
-    def create_plan(self, name, runs, run_time, rest_time, run_body):
+    def create_plan(self, name, runs, run_body):
         # populate plans
-        w1d1_plan = Plan(name, runs, run_time, rest_time)
-        run_time_desc = run_time / 60
-        rest_time_desc = rest_time / 60
+        week_plan = Plan(name, runs, 20, 20)
         run_plan = RunPlanButton(
-            text=f"[b]{w1d1_plan.name}[/b]\n {runs}x{run_time_desc} min run\n {rest_time_desc} min rest"
+            text=f"[b]{week_plan.name}[/b]\n {week_plan}",
+            halign="center",
+            valign="middle",
+            text_size=(None, None),
+            size_hint_x=None,
         )
-        run_plan.bind(on_press=lambda x: self.assign_plan(run_body, w1d1_plan))
+        run_plan.bind(on_press=lambda x: self.assign_plan(run_body, week_plan))
+        run_plan.bind(size=self.update_text_size)
         run_body.run_lst.add_widget(run_plan)
+
+    def update_text_size(self, instance, value):
+        instance.text_size = (instance.width, None)
 
 
 if __name__ == "__main__":

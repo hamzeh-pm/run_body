@@ -10,6 +10,7 @@ python = "^3.11"
 kivy = "^2.3.0"
 pygame = "^2.6.0"
 buildozer = "^1.5.0"
+plyer = "^2.1.0"
 
 
 [tool.poetry.group.dev.dependencies]
