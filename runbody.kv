@@ -1,0 +1,108 @@
+#:kivy 1.0.9
+
+<RunPlanButton>
+    text: "plan"
+    size_hint: None, None
+    size: 150, 150
+    halign: 'center'
+    valign: 'center'
+    markup: True
+
+<RunBodyLayout>:
+    state_lbl: state_label
+    run_lbl: run_label
+    timer_lbl: timer_label
+    run_lst: runs_list
+
+    orientation: 'vertical'
+    size_hint: 1, 1
+    size: 360, 640
+    spacing: 10
+    padding: 10
+
+    canvas.before:
+        Rectangle:
+            source: 'running.jpg'
+            size: self.size
+            pos: self.pos
+
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint: 1, 0.2
+        spacing: 10
+
+        Label:
+            text: 'Run Body'
+            font_size: 25
+            size_hint: 1, 1
+
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint: 1, 0.3
+        spacing: 10
+
+        Label:
+            id: state_label
+            text: "GO !!!"
+            font_size: 30
+            size_hint: 1, 0.4
+
+        Label:
+            id: run_label
+            font_size: 15
+            size_hint: 1, 0.3
+
+        Label:
+            id: timer_label
+            font_size: 25
+            size_hint: 1, 0.3
+
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint: 1, 0.3
+        spacing: 10
+
+        Button:
+            id: start_button
+            text: 'START'
+            font_size: 25
+            size_hint: None, None
+            size: 100, 100
+            pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+            on_press: root.action_start()
+            background_normal: ''  # Remove default background
+            background_color: 0, 0, 0, 0  # Make background transparent
+            canvas.before:
+                Color:
+                    rgba: 190/256, 74/256, 46/256, 1
+                PushMatrix
+                Rotate:
+                    angle: 0
+                    origin: self.center
+                Ellipse:
+                    size: self.size
+                    pos: self.pos
+                PopMatrix
+
+    BoxLayout:
+        size_hint: 1, 0.2
+
+        ScrollView:
+            size_hint: 1, 1
+            do_scroll_x: True
+            do_scroll_y: False
+            canvas.before:
+                Color:
+                    rgba: 56/256, 58/256, 80/256, .6  # #563A21
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+
+            BoxLayout:
+                id: runs_list
+                orientation: 'horizontal'
+                size_hint: None, 1
+                width: self.minimum_width
+                height: self.minimum_height
+                spacing: 10
+                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
